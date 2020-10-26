@@ -100,12 +100,9 @@ class ViewController: UIViewController, UIScrollViewDelegate {
         print("newScreenIndex: \(newScreenIndex)")
         if newScreenIndex != screenIndex {
             screenIndex = newScreenIndex
-            renderScreen(screenIndex: screenIndex - 2)
-            renderScreen(screenIndex: screenIndex - 1)
-            renderScreen(screenIndex: screenIndex + 1)
-            renderScreen(screenIndex: screenIndex)
-            renderScreen(screenIndex: screenIndex + 1)
-            renderScreen(screenIndex: screenIndex + 2)
+            for i in -screenBuffer ... screenBuffer {
+                renderScreen(screenIndex: screenIndex + i)
+            }
         }
     }
 }
