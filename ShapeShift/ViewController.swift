@@ -56,17 +56,22 @@ class ViewController: UIViewController, UIScrollViewDelegate {
         }
         
         // render children
-        for (i, virtualSubView) in virtualView.subViews.enumerated() {
-            let subScrollView = UIScrollView()
-            subScrollView.frame = CGRect(
-                x: 0,
-                y: CGFloat(i) * virtualSubView.height,
-                width: view.frame.size.width,
-                height: virtualSubView.height - spacing
-            )
-            subScrollView.backgroundColor = .black
-            subViews.append(subScrollView)
-            scrollView.addSubview(subScrollView)
+        let screenBuffer = 2
+        var i = 0
+        for screenBucketIndex in 0 ..< screenBuffer {
+            for virtualSubView in screenBuckets[screenBucketIndex] {
+                let subScrollView = UIScrollView()
+                subScrollView.frame = CGRect(
+                    x: 0,
+                    y: CGFloat(i) * virtualSubView.height,
+                    width: view.frame.size.width,
+                    height: virtualSubView.height - spacing
+                )
+                subScrollView.backgroundColor = .black
+                subViews.append(subScrollView)
+                scrollView.addSubview(subScrollView)
+                i += 1
+            }
         }
     }
     
