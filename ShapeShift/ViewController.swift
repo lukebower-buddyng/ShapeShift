@@ -20,6 +20,7 @@ struct VirtualView {
 class ViewController: UIViewController, UIScrollViewDelegate {
     var screenHeight: CGFloat = 0
     let scrollView = UIScrollView()
+    var recycledViews = [UIScrollView]()
     var virtualView = VirtualView(text: "nil", height: 0, subViews: [])
     var virtualViewScreenBuckets: [Int: [VirtualView]] = [0: []]
     var viewScreenBuckets = [Int: [UIScrollView]]()
@@ -68,6 +69,10 @@ class ViewController: UIViewController, UIScrollViewDelegate {
     }
     
     func getView() -> UIScrollView { // recylce old view if possible, if not create new one
+        // get from queue
+        if let view = recycledViews.popLast() {
+            return view
+        }
         let view = UIScrollView()
         return view
     }
@@ -92,7 +97,14 @@ class ViewController: UIViewController, UIScrollViewDelegate {
         }
     }
     
-    // Recycle screen
+    func recyclesScreen(screenIndex: Int) {
+        if let screenViews = viewScreenBuckets[screenIndex] {
+            for screenView in screenViews {
+                recycledViews.append(screenView)
+            }
+        }
+        viewScreenBuckets[screenIndex] = nil // reset so it gets rendered next time
+    }
     
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
         let screenPosition = scrollView.contentOffset.y / screenHeight
@@ -100,6 +112,8 @@ class ViewController: UIViewController, UIScrollViewDelegate {
         print("newScreenIndex: \(newScreenIndex)")
         if newScreenIndex != screenIndex {
             screenIndex = newScreenIndex
+            recyclesScreen(screenIndex: screenIndex - (screenBuffer + 1))
+            recyclesScreen(screenIndex: screenIndex + (screenBuffer + 1))
             for i in -screenBuffer ... screenBuffer {
                 renderScreen(screenIndex: screenIndex + i)
             }
