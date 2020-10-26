@@ -73,7 +73,7 @@ class ViewController: UIViewController, UIScrollViewDelegate {
     }
     
     func renderScreen(screenIndex: Int) {
-        if viewScreenBuckets[screenIndex] == nil { // don't re-render screens that are already drawn
+        if viewScreenBuckets[screenIndex] == nil && screenIndex >= 0 { // don't re-render screens that are already drawn
             viewScreenBuckets[screenIndex] = []
             if let screenVirtualViews = virtualViewScreenBuckets[screenIndex] {
                 for virtualSubView in screenVirtualViews {
@@ -100,6 +100,10 @@ class ViewController: UIViewController, UIScrollViewDelegate {
         print("newScreenIndex: \(newScreenIndex)")
         if newScreenIndex != screenIndex {
             screenIndex = newScreenIndex
+            renderScreen(screenIndex: screenIndex - 2)
+            renderScreen(screenIndex: screenIndex - 1)
+            renderScreen(screenIndex: screenIndex + 1)
+            renderScreen(screenIndex: screenIndex)
             renderScreen(screenIndex: screenIndex + 1)
             renderScreen(screenIndex: screenIndex + 2)
         }
