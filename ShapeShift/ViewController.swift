@@ -24,14 +24,14 @@ class ViewController: UIViewController, UIScrollViewDelegate {
     var virtualViewScreenBuckets: [Int: [VirtualView]] = [0: []]
     var viewScreenBuckets = [Int: [UIScrollView]]()
     var screenIndex = 0
-    let screenBuffer = 1
+    let screenBuffer = 2
     var allViews = [UIView]()
     
     override func viewDidLoad() {
         // Create virtual views
         var virtualSubViews = [VirtualView]()
-        for _ in 0...200 {
-            virtualSubViews.append(VirtualView(text: "hello", height: 10, subViews: []))
+        for i in 0...200 {
+            virtualSubViews.append(VirtualView(text: "\(i)", height: 30, subViews: []))
         }
         virtualView = VirtualView(text: "root", height: 400, subViews: virtualSubViews)
         
@@ -42,13 +42,13 @@ class ViewController: UIViewController, UIScrollViewDelegate {
         scrollView.fill(view)
         var totalHeight: CGFloat = 0
         for subView in virtualView.subViews {
-            totalHeight += subView.height + spacing
+            totalHeight += subView.height
         }
         scrollView.contentSize = CGSize(width: scrollView.frame.size.width, height: totalHeight)
         scrollView.delegate = self
         
         // Group virtual views by their screen position
-        screenHeight =  200 // view.safeAreaLayoutGuide.layoutFrame.size.height
+        screenHeight = view.safeAreaLayoutGuide.layoutFrame.size.height
         var currentScreen = 1
         var currentHeight: CGFloat = 0
         for (i, _) in virtualView.subViews.enumerated() {
@@ -82,7 +82,7 @@ class ViewController: UIViewController, UIScrollViewDelegate {
         if viewScreenBuckets[screenIndex] == nil && screenIndex >= 0 { // don't re-render screens that are already drawn
             viewScreenBuckets[screenIndex] = []
             if let screenVirtualViews = virtualViewScreenBuckets[screenIndex] {
-                for virtualSubView in screenVirtualViews {
+                for (_, virtualSubView) in screenVirtualViews.enumerated() {
                     let subScrollView = getView()
                     viewScreenBuckets[screenIndex]?.append(subScrollView) // add view to screen bucket for recycling later
                     subScrollView.frame = CGRect(
@@ -91,8 +91,19 @@ class ViewController: UIViewController, UIScrollViewDelegate {
                         width: view.frame.size.width,
                         height: virtualSubView.height - spacing
                     )
+                    subScrollView.contentSize = CGSize(width: subScrollView.frame.size.width, height: subScrollView.frame.size.height)
                     subScrollView.backgroundColor = .black
                     scrollView.addSubview(subScrollView)
+                    // add label
+                    let label = UILabel(frame:  CGRect(
+                        x: 2,
+                        y: 2,
+                        width: 200,
+                        height: 20
+                    ))
+                    label.text = "\(virtualSubView.text)"
+                    label.textColor = .white
+                    subScrollView.addSubview(label)
                 }
             }
         }
@@ -102,6 +113,8 @@ class ViewController: UIViewController, UIScrollViewDelegate {
         if let screenViews = viewScreenBuckets[screenIndex] {
             for screenView in screenViews {
                 recycledViews.append(screenView)
+                screenView.subviews.forEach({ $0.removeFromSuperview() }) // remove child views
+                screenView.backgroundColor = .gray
             }
         }
         viewScreenBuckets[screenIndex] = nil // reset so it gets rendered next time
