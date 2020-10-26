@@ -22,7 +22,7 @@ class ViewController: UIViewController, UIScrollViewDelegate {
     let scrollView = UIScrollView()
     var virtualView = VirtualView(text: "nil", height: 0, subViews: [])
     var virtualViewScreenBuckets: [Int: [VirtualView]] = [0: []]
-    var viewScreenBuckets: [Int: [UIScrollView]] = [0: []]
+    var viewScreenBuckets = [Int: [UIScrollView]]()
     var screenIndex = 0
     let screenBuffer = 2
     
@@ -73,19 +73,21 @@ class ViewController: UIViewController, UIScrollViewDelegate {
     }
     
     func renderScreen(screenIndex: Int) {
-        viewScreenBuckets[screenIndex] = []
-        if let screenVirtualViews = virtualViewScreenBuckets[screenIndex] {
-            for virtualSubView in screenVirtualViews {
-                let subScrollView = getView()
-                viewScreenBuckets[screenIndex]?.append(subScrollView) // add view to screen bucket for recycling later
-                subScrollView.frame = CGRect(
-                    x: 0,
-                    y: CGFloat(virtualSubView.index) * virtualSubView.height,
-                    width: view.frame.size.width,
-                    height: virtualSubView.height - spacing
-                )
-                subScrollView.backgroundColor = .black
-                scrollView.addSubview(subScrollView)
+        if viewScreenBuckets[screenIndex] == nil { // don't re-render screens that are already drawn
+            viewScreenBuckets[screenIndex] = []
+            if let screenVirtualViews = virtualViewScreenBuckets[screenIndex] {
+                for virtualSubView in screenVirtualViews {
+                    let subScrollView = getView()
+                    viewScreenBuckets[screenIndex]?.append(subScrollView) // add view to screen bucket for recycling later
+                    subScrollView.frame = CGRect(
+                        x: 0,
+                        y: CGFloat(virtualSubView.index) * virtualSubView.height,
+                        width: view.frame.size.width,
+                        height: virtualSubView.height - spacing
+                    )
+                    subScrollView.backgroundColor = .black
+                    scrollView.addSubview(subScrollView)
+                }
             }
         }
     }
