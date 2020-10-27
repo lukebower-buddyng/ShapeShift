@@ -15,6 +15,7 @@ class ViewController: UIViewController {
         react.view.fill(view)
         let vTree = createTestVirtualViewData()
         react.virtualViewTree = vTree
+        react.isRoot = true
     }
 }
 
@@ -69,6 +70,7 @@ struct Layout {
 }
 
 class React: UIViewController, UIScrollViewDelegate {
+    var isRoot = false
     
     let scrollView = UIScrollView()
 
@@ -99,7 +101,9 @@ class React: UIViewController, UIScrollViewDelegate {
     
     func render(_ virtualViewTree: VirtualView) {
         self.virtualViewTree = virtualViewTree
-        renderSuperView()
+        if isRoot {
+            renderSuperView()
+        }
         setScrollViewVirtualSize()
         createVirtualScreenBuckets()
         renderScreens()
