@@ -14,7 +14,7 @@ class ViewController: UIViewController {
         addViewController(react)
         react.view.fill(view)
         let vTree = createTestVirtualViewData()
-        react.render(vTree)
+        react.virtualViewTree = vTree
     }
 }
 
@@ -23,7 +23,7 @@ func createTestVirtualViewData() -> VirtualView {
     for i in 0...200 {
         virtualSubViews.append(VirtualView(
             text: "\(i)",
-            layout: { parentView in return Layout(h: 60, color: .cyan) },
+            layout: { parentView in return Layout(h: parentView.frame.height / 8, color: .cyan) },
             subViews: []
         ))
     }
@@ -92,6 +92,10 @@ class React: UIViewController, UIScrollViewDelegate {
         scrollView.backgroundColor = .purple
     }
     
+    override func viewDidLayoutSubviews() {
+        render(virtualViewTree)
+    }
+    
     func render(_ virtualViewTree: VirtualView) {
         self.virtualViewTree = virtualViewTree
         setScrollViewSize()
@@ -108,6 +112,7 @@ class React: UIViewController, UIScrollViewDelegate {
     }
     
     func createVirtualScreenBuckets() {
+        virtualViewScreenBuckets = [0: []]
         screenHeight = view.safeAreaLayoutGuide.layoutFrame.size.height
         var currentScreen = 1
         var currentHeight: CGFloat = 0
@@ -124,6 +129,7 @@ class React: UIViewController, UIScrollViewDelegate {
     }
     
     func renderScreens() {
+        viewScreenBuckets = [Int: [UIScrollView]]() // reset view buckets TODO try to recycle these comparing with the last virtual tree time step
         recycleNonVisibleScreens()
         renderCurrentScreenAndBuffer()
     }
