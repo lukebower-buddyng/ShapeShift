@@ -15,25 +15,38 @@ struct VirtualView {
     var subViews: [VirtualView]
 }
 
-class ViewController: UIViewController, UIScrollViewDelegate {
+class ViewController: UIViewController {
+    override func viewDidLoad() {
+        let react = React()
+        addViewController(react)
+        react.view.fill(view)
+    }
+}
+
+class React: UIViewController, UIScrollViewDelegate {
     var screenHeight: CGFloat = 0
     let spacing: CGFloat = 2
     let scrollView = UIScrollView()
     var recycledViews = [UIScrollView]()
-    var virtualView = VirtualView(text: "nil", height: 0, subViews: [])
+    var virtualViewTree = VirtualView(text: "nil", height: 0, subViews: [])
     var virtualViewScreenBuckets: [Int: [VirtualView]] = [0: []]
     var viewScreenBuckets = [Int: [UIScrollView]]()
     var screenIndex = 0
-    let screenBuffer = 2
+    let screenBuffer = 1
     var allViews = [UIView]()
     
+//    func render(_ virtualViewTree: VirtualView) {
+//        self.virtualViewTree = virtualViewTree
+//
+//    }
+
     override func viewDidLoad() {
         // Create virtual views
         var virtualSubViews = [VirtualView]()
         for i in 0...200 {
             virtualSubViews.append(VirtualView(text: "\(i)", height: 30, subViews: []))
         }
-        virtualView = VirtualView(text: "root", height: 400, subViews: virtualSubViews)
+        virtualViewTree = VirtualView(text: "root", height: 400, subViews: virtualSubViews)
         
         // Init scroll view
         scrollView.delegate = self
@@ -41,7 +54,7 @@ class ViewController: UIViewController, UIScrollViewDelegate {
         scrollView.backgroundColor = .purple
         scrollView.fill(view)
         var totalHeight: CGFloat = 0
-        for subView in virtualView.subViews {
+        for subView in virtualViewTree.subViews {
             totalHeight += subView.height
         }
         scrollView.contentSize = CGSize(width: scrollView.frame.size.width, height: totalHeight)
@@ -51,9 +64,9 @@ class ViewController: UIViewController, UIScrollViewDelegate {
         screenHeight = view.safeAreaLayoutGuide.layoutFrame.size.height
         var currentScreen = 1
         var currentHeight: CGFloat = 0
-        for (i, _) in virtualView.subViews.enumerated() {
-            virtualView.subViews[i].index = i // set index position
-            let virtualSubView = virtualView.subViews[i]
+        for (i, _) in virtualViewTree.subViews.enumerated() {
+            virtualViewTree.subViews[i].index = i // set index position
+            let virtualSubView = virtualViewTree.subViews[i]
             if currentHeight >= CGFloat(currentScreen) * screenHeight {
                 currentScreen += 1
                 virtualViewScreenBuckets[currentScreen - 1] = [VirtualView]()
@@ -102,46 +115,58 @@ class ViewController: UIViewController, UIScrollViewDelegate {
                         height: 20
                     ))
                     label.text = "\(virtualSubView.text)"
-                    label.textColor = .white
+                    label.textColor = .green
                     subScrollView.addSubview(label)
                 }
             }
         }
     }
     
-    func recyclesScreen(screenIndex: Int) {
+//    func renderView(_ virtualSubView: VirtualView) {
+//        
+//    }
+    
+    func recycleScreen(screenIndex: Int) {
         if let screenViews = viewScreenBuckets[screenIndex] {
             for screenView in screenViews {
                 recycledViews.append(screenView)
                 screenView.subviews.forEach({ $0.removeFromSuperview() }) // remove child views
-                screenView.backgroundColor = .gray
+                // TODO add all subviews to recylced views queue?
             }
         }
         viewScreenBuckets[screenIndex] = nil // reset so it gets rendered next time
     }
     
-    func scrollViewDidScroll(_ scrollView: UIScrollView) {
-        let screenPosition = scrollView.contentOffset.y / screenHeight
-        let newScreenIndex = Int(floor(screenPosition))
-        print("Screen: \(newScreenIndex)")
-        print("Total views used: \(allViews.count)")
-        if newScreenIndex != screenIndex {
-            screenIndex = newScreenIndex
-            recyclesScreen(screenIndex: screenIndex - (screenBuffer + 1))
-            recyclesScreen(screenIndex: screenIndex + (screenBuffer + 1))
-            
-            // clear all non visable screens
-            for bucket in viewScreenBuckets {
-                let i = bucket.key
-                if i < screenIndex - screenBuffer || i > screenIndex + screenBuffer {
-                    recyclesScreen(screenIndex: i)
-                }
-            }
-            
-            // render current screen and its buffer screens
-            for i in -screenBuffer ... screenBuffer {
-                renderScreen(screenIndex: screenIndex + i)
+    func renderScreens() {
+        recycleNonVisibleScreens()
+        renderCurrentScreenAndBuffer()
+    }
+    
+    func recycleNonVisibleScreens() {
+        for bucket in viewScreenBuckets {
+            let i = bucket.key
+            if i < screenIndex - screenBuffer || i > screenIndex + screenBuffer {
+                recycleScreen(screenIndex: i)
             }
         }
+    }
+    
+    func renderCurrentScreenAndBuffer() {
+        for i in -screenBuffer ... screenBuffer {
+            renderScreen(screenIndex: screenIndex + i)
+        }
+    }
+    
+    func updateScreenIndex() {
+        let screenPosition = scrollView.contentOffset.y / screenHeight
+        let newScreenIndex = Int(floor(screenPosition))
+        if newScreenIndex != screenIndex {
+            screenIndex = newScreenIndex
+            renderScreens()
+        }
+    }
+    
+    func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        updateScreenIndex()
     }
 }
