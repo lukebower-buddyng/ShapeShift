@@ -20,7 +20,7 @@ class ViewController: UIViewController {
 
 func createTestVirtualViewData() -> VirtualView {
     var virtualSubViews = [VirtualView]()
-    for i in 0...200 {
+    for i in 0...1 {
         virtualSubViews.append(VirtualView(
             text: "\(i)",
             layout: { parentView in return Layout(h: parentView.frame.height / 8, color: .cyan) },
@@ -90,8 +90,7 @@ class React: UIViewController, UIScrollViewDelegate {
     func initScrollView() {
         scrollView.delegate = self
         view.addSubview(scrollView)
-        scrollView.fill(view)
-        scrollView.backgroundColor = .purple
+        scrollView.clipsToBounds = true
     }
     
     override func viewDidLayoutSubviews() {
@@ -100,12 +99,20 @@ class React: UIViewController, UIScrollViewDelegate {
     
     func render(_ virtualViewTree: VirtualView) {
         self.virtualViewTree = virtualViewTree
-        setScrollViewSize()
+        renderSuperView()
+        setScrollViewVirtualSize()
         createVirtualScreenBuckets()
         renderScreens()
     }
     
-    func setScrollViewSize() {
+    func renderSuperView() {
+        scrollView.frame = CGRect(x: 0, y: 0,
+            width: view.safeAreaLayoutGuide.layoutFrame.width,
+            height: view.safeAreaLayoutGuide.layoutFrame.height)
+        scrollView.backgroundColor = .purple
+    }
+    
+    func setScrollViewVirtualSize() {
         var totalHeight: CGFloat = 0
         for (i, subView) in virtualViewTree.subViews.enumerated() {
             totalHeight += virtualViewTree.layoutSubViews(i, virtualViewTree.subViews.count, view).h ?? subView.layout(view).h ?? defaultViewHeight
