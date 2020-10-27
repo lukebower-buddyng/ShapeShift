@@ -21,11 +21,20 @@ class ViewController: UIViewController {
 
 func createTestVirtualViewData() -> VirtualView {
     var virtualSubViews = [VirtualView]()
-    for i in 0...1 {
+    for i in 0...10 {
         virtualSubViews.append(VirtualView(
             text: "\(i)",
             layout: { parentView in return Layout(h: parentView.frame.height / 8, color: .cyan) },
-            subViews: []
+            subViews: [
+                VirtualView(
+                    text: "\(i*i)",
+                    layout: { parentView in return Layout(h: 30, color: .orange) }
+                ),
+                VirtualView(
+                    text: "\(i*i)",
+                    layout: { parentView in return Layout(h: 30, color: .yellow) }
+                )
+            ]
         ))
     }
     return VirtualView(text: "root", layoutSubViews: { (i, total, parentView) in
@@ -82,8 +91,8 @@ class React: UIViewController, UIScrollViewDelegate {
     var virtualViewTree = VirtualView(text: "nil", subViews: [])
     var virtualViewScreenBuckets: [Int: [VirtualView]] = [0: []]
     
-    var recycledViews = [UIScrollView]()
-    var viewScreenBuckets = [Int: [UIScrollView]]()
+    var recycledViews = [React]()
+    var viewScreenBuckets = [Int: [React]]()
     
     override func viewDidLoad() {
         initScrollView()
@@ -100,6 +109,7 @@ class React: UIViewController, UIScrollViewDelegate {
     }
     
     func render(_ virtualViewTree: VirtualView) {
+        print("render")
         self.virtualViewTree = virtualViewTree
         if isRoot {
             renderSuperView()
@@ -142,7 +152,7 @@ class React: UIViewController, UIScrollViewDelegate {
     }
     
     func renderScreens() {
-        viewScreenBuckets = [Int: [UIScrollView]]() // reset view buckets TODO try to recycle these comparing with the last virtual tree time step
+        viewScreenBuckets = [Int: [React]]() // reset view buckets TODO try to recycle these comparing with the last virtual tree time step
         recycleNonVisibleScreens()
         renderCurrentScreenAndBuffer()
     }
@@ -162,11 +172,13 @@ class React: UIViewController, UIScrollViewDelegate {
         }
     }
     
-    func getView() -> UIScrollView { // recylce old view if possible, if not create new one
+    //--- render shit
+    
+    func getView() -> React { // recylce old view if possible, if not create new one
         if let view = recycledViews.popLast() { // get from queue
             return view
         }
-        let view = UIScrollView()
+        let view = React()
         return view
     }
     
@@ -182,18 +194,21 @@ class React: UIViewController, UIScrollViewDelegate {
         }
     }
     
-    func renderView(_ i: Int, _ virtualSubView: VirtualView) -> UIScrollView {
+    func renderView(_ i: Int, _ virtualSubView: VirtualView) -> React {
         let subScrollView = getView()
         let height = (virtualViewTree.layoutSubViews(i, virtualViewTree.subViews.count, view).h ?? virtualSubView.layout(view).h ?? defaultViewHeight)
-        subScrollView.frame = CGRect(
+        subScrollView.view.frame = CGRect(
             x: 0,
             y: CGFloat(virtualSubView.index) * height,
             width: view.frame.size.width,
             height: height - spacing
         )
-        subScrollView.contentSize = CGSize(width: subScrollView.frame.size.width, height: subScrollView.frame.size.height)
-        subScrollView.backgroundColor = virtualSubView.layout(view).color ?? .black
-        scrollView.addSubview(subScrollView)
+        subScrollView.scrollView.contentSize = CGSize(width: subScrollView.view.frame.size.width, height: subScrollView.view.frame.size.height)
+        subScrollView.view.backgroundColor = virtualSubView.layout(view).color ?? .black
+        scrollView.addSubview(subScrollView.view)
+        addChild(subScrollView)
+        subScrollView.didMove(toParent: self)
+        
         // add label
         let label = UILabel(frame:  CGRect(
             x: 2,
@@ -203,7 +218,8 @@ class React: UIViewController, UIScrollViewDelegate {
         ))
         label.text = "\(virtualSubView.text)"
         label.textColor = .black
-        subScrollView.addSubview(label)
+        subScrollView.view.addSubview(label)
+        subScrollView.virtualViewTree = virtualSubView // gets rendered on viewDidLayoutSubViews
         return subScrollView
     }
     
@@ -211,7 +227,11 @@ class React: UIViewController, UIScrollViewDelegate {
         if let screenViews = viewScreenBuckets[screenIndex] {
             for screenView in screenViews {
                 recycledViews.append(screenView)
-                screenView.subviews.forEach({ $0.removeFromSuperview() }) // remove child views
+                screenView.view.subviews.forEach({ // remove child views
+                    $0.removeFromSuperview()
+                })
+                screenView.removeFromParent()
+                // TODO think more about recycling, maybe calling a clean up method on React to do this recursively
                 // TODO add all subviews to recylced views queue?
             }
         }
