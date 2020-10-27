@@ -21,16 +21,49 @@ class ViewController: UIViewController {
 func createTestVirtualViewData() -> VirtualView {
     var virtualSubViews = [VirtualView]()
     for i in 0...200 {
-        virtualSubViews.append(VirtualView(text: "\(i)", height: 30, subViews: []))
+        virtualSubViews.append(VirtualView(
+            text: "\(i)",
+            layout: { parentView in return Layout(h: 60, color: .cyan) },
+            subViews: []
+        ))
     }
-    return VirtualView(text: "root", height: 400, subViews: virtualSubViews)
+    return VirtualView(text: "root", subViews: virtualSubViews)
 }
+
+let defaultViewHeight: CGFloat = 50
 
 struct VirtualView {
     var index: Int = 0
     let text: String
-    let height: CGFloat
+    var layout: (UIView) -> Layout // UIView = parentView
+    var layoutSubViews: (Int, Int, UIView) -> Layout // Int = sibling position, Int = total siblings, UIView = parentView
     var subViews: [VirtualView]
+    init(
+         text: String = "",
+         layout: @escaping (UIView) -> Layout = {_ in Layout()},
+         layoutSubViews: @escaping (Int, Int, UIView) -> Layout = {_,_,_  in Layout()},
+         subViews: [VirtualView] = []
+    ) {
+        self.text = text
+        self.layout = layout
+        self.layoutSubViews = layoutSubViews
+        self.subViews = subViews
+    }
+}
+
+struct Layout {
+    let x: CGFloat?
+    let y: CGFloat?
+    let w: CGFloat?
+    let h: CGFloat?
+    let color: UIColor?
+    init(x: CGFloat? = nil, y: CGFloat? = nil, w: CGFloat? = nil, h: CGFloat? = nil, color: UIColor? = nil) {
+        self.x = x
+        self.y = y
+        self.w = w
+        self.h = h
+        self.color = color
+    }
 }
 
 class React: UIViewController, UIScrollViewDelegate {
@@ -42,7 +75,7 @@ class React: UIViewController, UIScrollViewDelegate {
     var currentScreenIndex = 0
     let spacing: CGFloat = 2
     
-    var virtualViewTree = VirtualView(text: "nil", height: 0, subViews: [])
+    var virtualViewTree = VirtualView(text: "nil", subViews: [])
     var virtualViewScreenBuckets: [Int: [VirtualView]] = [0: []]
     
     var recycledViews = [UIScrollView]()
@@ -69,7 +102,7 @@ class React: UIViewController, UIScrollViewDelegate {
     func setScrollViewSize() {
         var totalHeight: CGFloat = 0
         for subView in virtualViewTree.subViews {
-            totalHeight += subView.height
+            totalHeight += subView.layout(view).h ?? defaultViewHeight
         }
         scrollView.contentSize = CGSize(width: scrollView.frame.size.width, height: totalHeight)
     }
@@ -86,7 +119,7 @@ class React: UIViewController, UIScrollViewDelegate {
                 virtualViewScreenBuckets[currentScreen - 1] = [VirtualView]()
             }
             virtualViewScreenBuckets[currentScreen - 1]?.append(virtualSubView)
-            currentHeight += virtualSubView.height
+            currentHeight += virtualSubView.layout(view).h ?? defaultViewHeight
         }
     }
     
@@ -134,12 +167,12 @@ class React: UIViewController, UIScrollViewDelegate {
         let subScrollView = getView()
         subScrollView.frame = CGRect(
             x: 0,
-            y: CGFloat(virtualSubView.index) * virtualSubView.height,
+            y: CGFloat(virtualSubView.index) * (virtualSubView.layout(view).h ?? defaultViewHeight),
             width: view.frame.size.width,
-            height: virtualSubView.height - spacing
+            height: (virtualSubView.layout(view).h ?? defaultViewHeight) - spacing
         )
         subScrollView.contentSize = CGSize(width: subScrollView.frame.size.width, height: subScrollView.frame.size.height)
-        subScrollView.backgroundColor = .black
+        subScrollView.backgroundColor = virtualSubView.layout(view).color ?? .black
         scrollView.addSubview(subScrollView)
         // add label
         let label = UILabel(frame:  CGRect(
@@ -149,7 +182,7 @@ class React: UIViewController, UIScrollViewDelegate {
             height: 20
         ))
         label.text = "\(virtualSubView.text)"
-        label.textColor = .green
+        label.textColor = .black
         subScrollView.addSubview(label)
         return subScrollView
     }
