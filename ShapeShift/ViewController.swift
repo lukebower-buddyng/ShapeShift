@@ -13,7 +13,17 @@ class ViewController: UIViewController {
         let react = React()
         addViewController(react)
         react.view.fill(view)
+        let vTree = createTestVirtualViewData()
+        react.render(vTree)
     }
+}
+
+func createTestVirtualViewData() -> VirtualView {
+    var virtualSubViews = [VirtualView]()
+    for i in 0...200 {
+        virtualSubViews.append(VirtualView(text: "\(i)", height: 30, subViews: []))
+    }
+    return VirtualView(text: "root", height: 400, subViews: virtualSubViews)
 }
 
 struct VirtualView {
@@ -28,9 +38,9 @@ class React: UIViewController, UIScrollViewDelegate {
     let scrollView = UIScrollView()
 
     var screenHeight: CGFloat = 0
-    let spacing: CGFloat = 2
-    var screenIndex = 0
     let screenBuffer = 1
+    var screenIndex = 0
+    let spacing: CGFloat = 2
     
     var virtualViewTree = VirtualView(text: "nil", height: 0, subViews: [])
     var virtualViewScreenBuckets: [Int: [VirtualView]] = [0: []]
@@ -38,26 +48,8 @@ class React: UIViewController, UIScrollViewDelegate {
     var recycledViews = [UIScrollView]()
     var viewScreenBuckets = [Int: [UIScrollView]]()
     
-    
     override func viewDidLoad() {
-        createTestVirtualViewData()
         initScrollView()
-        setScrollViewSize()
-        createVirtualScreenBuckets()
-        renderScreens()
-    }
-    
-//    func render(_ virtualViewTree: VirtualView) {
-//        self.virtualViewTree = virtualViewTree
-//
-//    }
-    
-    func createTestVirtualViewData() {
-        var virtualSubViews = [VirtualView]()
-        for i in 0...200 {
-            virtualSubViews.append(VirtualView(text: "\(i)", height: 30, subViews: []))
-        }
-        virtualViewTree = VirtualView(text: "root", height: 400, subViews: virtualSubViews)
     }
     
     func initScrollView() {
@@ -65,6 +57,13 @@ class React: UIViewController, UIScrollViewDelegate {
         view.addSubview(scrollView)
         scrollView.fill(view)
         scrollView.backgroundColor = .purple
+    }
+    
+    func render(_ virtualViewTree: VirtualView) {
+        self.virtualViewTree = virtualViewTree
+        setScrollViewSize()
+        createVirtualScreenBuckets()
+        renderScreens()
     }
     
     func setScrollViewSize() {
