@@ -27,7 +27,9 @@ func createTestVirtualViewData() -> VirtualView {
             subViews: []
         ))
     }
-    return VirtualView(text: "root", subViews: virtualSubViews)
+    return VirtualView(text: "root", layoutSubViews: { (i, total, parentView) in
+        return Layout(h: 600)
+    }, subViews: virtualSubViews)
 }
 
 let defaultViewHeight: CGFloat = 50
@@ -105,8 +107,8 @@ class React: UIViewController, UIScrollViewDelegate {
     
     func setScrollViewSize() {
         var totalHeight: CGFloat = 0
-        for subView in virtualViewTree.subViews {
-            totalHeight += subView.layout(view).h ?? defaultViewHeight
+        for (i, subView) in virtualViewTree.subViews.enumerated() {
+            totalHeight += virtualViewTree.layoutSubViews(i, virtualViewTree.subViews.count, view).h ?? subView.layout(view).h ?? defaultViewHeight
         }
         scrollView.contentSize = CGSize(width: scrollView.frame.size.width, height: totalHeight)
     }
@@ -124,7 +126,7 @@ class React: UIViewController, UIScrollViewDelegate {
                 virtualViewScreenBuckets[currentScreen - 1] = [VirtualView]()
             }
             virtualViewScreenBuckets[currentScreen - 1]?.append(virtualSubView)
-            currentHeight += virtualSubView.layout(view).h ?? defaultViewHeight
+            currentHeight += virtualViewTree.layoutSubViews(i, virtualViewTree.subViews.count, view).h ?? virtualSubView.layout(view).h ?? defaultViewHeight
         }
     }
     
@@ -161,21 +163,22 @@ class React: UIViewController, UIScrollViewDelegate {
         if viewScreenBuckets[screenIndex] == nil && screenIndex >= 0 { // don't re-render screens that are already drawn
             viewScreenBuckets[screenIndex] = []
             if let screenVirtualViews = virtualViewScreenBuckets[screenIndex] {
-                for (_, virtualSubView) in screenVirtualViews.enumerated() {
-                    let subScrollView = renderView(virtualSubView)
+                for (i, virtualSubView) in screenVirtualViews.enumerated() {
+                    let subScrollView = renderView(i, virtualSubView)
                     viewScreenBuckets[screenIndex]?.append(subScrollView) // add view to screen bucket for recycling later
                 }
             }
         }
     }
     
-    func renderView(_ virtualSubView: VirtualView) -> UIScrollView {
+    func renderView(_ i: Int, _ virtualSubView: VirtualView) -> UIScrollView {
         let subScrollView = getView()
+        let height = (virtualViewTree.layoutSubViews(i, virtualViewTree.subViews.count, view).h ?? virtualSubView.layout(view).h ?? defaultViewHeight)
         subScrollView.frame = CGRect(
             x: 0,
-            y: CGFloat(virtualSubView.index) * (virtualSubView.layout(view).h ?? defaultViewHeight),
+            y: CGFloat(virtualSubView.index) * height,
             width: view.frame.size.width,
-            height: (virtualSubView.layout(view).h ?? defaultViewHeight) - spacing
+            height: height - spacing
         )
         subScrollView.contentSize = CGSize(width: subScrollView.frame.size.width, height: subScrollView.frame.size.height)
         subScrollView.backgroundColor = virtualSubView.layout(view).color ?? .black
