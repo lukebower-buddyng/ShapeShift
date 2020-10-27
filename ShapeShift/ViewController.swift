@@ -8,13 +8,6 @@
 
 import UIKit
 
-struct VirtualView {
-    var index: Int = 0
-    let text: String
-    let height: CGFloat
-    var subViews: [VirtualView]
-}
-
 class ViewController: UIViewController {
     override func viewDidLoad() {
         let react = React()
@@ -23,44 +16,66 @@ class ViewController: UIViewController {
     }
 }
 
+struct VirtualView {
+    var index: Int = 0
+    let text: String
+    let height: CGFloat
+    var subViews: [VirtualView]
+}
+
 class React: UIViewController, UIScrollViewDelegate {
+    
+    let scrollView = UIScrollView()
+
     var screenHeight: CGFloat = 0
     let spacing: CGFloat = 2
-    let scrollView = UIScrollView()
-    var recycledViews = [UIScrollView]()
-    var virtualViewTree = VirtualView(text: "nil", height: 0, subViews: [])
-    var virtualViewScreenBuckets: [Int: [VirtualView]] = [0: []]
-    var viewScreenBuckets = [Int: [UIScrollView]]()
     var screenIndex = 0
     let screenBuffer = 1
-    var allViews = [UIView]()
+    
+    var virtualViewTree = VirtualView(text: "nil", height: 0, subViews: [])
+    var virtualViewScreenBuckets: [Int: [VirtualView]] = [0: []]
+    
+    var recycledViews = [UIScrollView]()
+    var viewScreenBuckets = [Int: [UIScrollView]]()
+    
+    
+    override func viewDidLoad() {
+        createTestVirtualViewData()
+        initScrollView()
+        setScrollViewSize()
+        createVirtualScreenBuckets()
+        renderScreens()
+    }
     
 //    func render(_ virtualViewTree: VirtualView) {
 //        self.virtualViewTree = virtualViewTree
 //
 //    }
-
-    override func viewDidLoad() {
-        // Create virtual views
+    
+    func createTestVirtualViewData() {
         var virtualSubViews = [VirtualView]()
         for i in 0...200 {
             virtualSubViews.append(VirtualView(text: "\(i)", height: 30, subViews: []))
         }
         virtualViewTree = VirtualView(text: "root", height: 400, subViews: virtualSubViews)
-        
-        // Init scroll view
+    }
+    
+    func initScrollView() {
         scrollView.delegate = self
         view.addSubview(scrollView)
-        scrollView.backgroundColor = .purple
         scrollView.fill(view)
+        scrollView.backgroundColor = .purple
+    }
+    
+    func setScrollViewSize() {
         var totalHeight: CGFloat = 0
         for subView in virtualViewTree.subViews {
             totalHeight += subView.height
         }
         scrollView.contentSize = CGSize(width: scrollView.frame.size.width, height: totalHeight)
-        scrollView.delegate = self
-        
-        // Group virtual views by their screen position
+    }
+    
+    func createVirtualScreenBuckets() {
         screenHeight = view.safeAreaLayoutGuide.layoutFrame.size.height
         var currentScreen = 1
         var currentHeight: CGFloat = 0
@@ -74,20 +89,33 @@ class React: UIViewController, UIScrollViewDelegate {
             virtualViewScreenBuckets[currentScreen - 1]?.append(virtualSubView)
             currentHeight += virtualSubView.height
         }
-        
-        // Initial render children
-        for i in screenIndex ..< screenBuffer + 1 {
-            renderScreen(screenIndex: i)
+    }
+    
+    func renderScreens() {
+        recycleNonVisibleScreens()
+        renderCurrentScreenAndBuffer()
+    }
+    
+    func recycleNonVisibleScreens() {
+        for bucket in viewScreenBuckets {
+            let i = bucket.key
+            if i < screenIndex - screenBuffer || i > screenIndex + screenBuffer {
+                recycleScreen(screenIndex: i)
+            }
+        }
+    }
+    
+    func renderCurrentScreenAndBuffer() {
+        for i in -screenBuffer ... screenBuffer {
+            renderScreen(screenIndex: screenIndex + i)
         }
     }
     
     func getView() -> UIScrollView { // recylce old view if possible, if not create new one
-        // get from queue
-        if let view = recycledViews.popLast() {
+        if let view = recycledViews.popLast() { // get from queue
             return view
         }
         let view = UIScrollView()
-        allViews.append(view)
         return view
     }
     
@@ -123,7 +151,7 @@ class React: UIViewController, UIScrollViewDelegate {
     }
     
 //    func renderView(_ virtualSubView: VirtualView) {
-//        
+//
 //    }
     
     func recycleScreen(screenIndex: Int) {
@@ -137,24 +165,8 @@ class React: UIViewController, UIScrollViewDelegate {
         viewScreenBuckets[screenIndex] = nil // reset so it gets rendered next time
     }
     
-    func renderScreens() {
-        recycleNonVisibleScreens()
-        renderCurrentScreenAndBuffer()
-    }
-    
-    func recycleNonVisibleScreens() {
-        for bucket in viewScreenBuckets {
-            let i = bucket.key
-            if i < screenIndex - screenBuffer || i > screenIndex + screenBuffer {
-                recycleScreen(screenIndex: i)
-            }
-        }
-    }
-    
-    func renderCurrentScreenAndBuffer() {
-        for i in -screenBuffer ... screenBuffer {
-            renderScreen(screenIndex: screenIndex + i)
-        }
+    func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        updateScreenIndex()
     }
     
     func updateScreenIndex() {
@@ -164,9 +176,5 @@ class React: UIViewController, UIScrollViewDelegate {
             screenIndex = newScreenIndex
             renderScreens()
         }
-    }
-    
-    func scrollViewDidScroll(_ scrollView: UIScrollView) {
-        updateScreenIndex()
     }
 }
