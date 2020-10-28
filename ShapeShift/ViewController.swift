@@ -8,40 +8,6 @@
 
 import UIKit
 
-class ViewController: UIViewController {
-    override func viewDidLoad() {
-        let react = React()
-        addViewController(react)
-        react.view.fill(view)
-        let vTree = createTestVirtualViewData()
-        react.virtualViewTree = vTree
-        react.isRoot = true
-    }
-}
-
-func createTestVirtualViewData() -> VirtualView {
-    var virtualSubViews = [VirtualView]()
-    for i in 0...10 {
-        virtualSubViews.append(VirtualView(
-            text: "\(i)",
-            layout: { parentView in return Layout(h: parentView.frame.height / 8, color: .cyan) },
-            subViews: [
-                VirtualView(
-                    text: "\(i*i)",
-                    layout: { parentView in return Layout(h: 30, color: .orange) }
-                ),
-                VirtualView(
-                    text: "\(i*i)",
-                    layout: { parentView in return Layout(h: 30, color: .yellow) }
-                )
-            ]
-        ))
-    }
-    return VirtualView(text: "root", layoutSubViews: { (i, total, parentView) in
-        return Layout(h: 600)
-    }, subViews: virtualSubViews)
-}
-
 let defaultViewHeight: CGFloat = 50
 
 struct VirtualView {
@@ -78,8 +44,43 @@ struct Layout {
     }
 }
 
+func createTestVirtualViewData() -> VirtualView {
+    var virtualSubViews = [VirtualView]()
+    for _ in 0...0 {
+        virtualSubViews.append(VirtualView(
+            text: "level 1",//"\(i)",
+            layout: { parentView in return Layout(h: parentView.frame.height / 8, color: .cyan) },
+            subViews: [
+                VirtualView(
+                    text: "level 2",
+                    layout: { parentView in return Layout(h: 30, color: .orange) }
+                )
+            ]
+        ))
+    }
+    return VirtualView(
+        text: "root",
+        layoutSubViews: { (i, total, parentView) in return Layout(h: 600) }, subViews: virtualSubViews
+    )
+}
+
+
+class ViewController: UIViewController {
+    let vTree = createTestVirtualViewData()
+    let react = React(virtualView: createTestVirtualViewData(), isRoot: true)
+    
+    override func viewDidLoad() {
+        addViewController(react)
+        react.view.fill(view)
+    }
+    
+    override func viewDidLayoutSubviews() {
+        react.render(vTree)
+    }
+}
+
 class React: UIViewController, UIScrollViewDelegate {
-    var isRoot = false
+    var isRoot: Bool
     
     let scrollView = UIScrollView()
 
@@ -88,28 +89,41 @@ class React: UIViewController, UIScrollViewDelegate {
     var currentScreenIndex = 0
     let spacing: CGFloat = 2
     
-    var virtualViewTree = VirtualView(text: "nil", subViews: [])
+    var virtualViewTree: VirtualView
     var virtualViewScreenBuckets: [Int: [VirtualView]] = [0: []]
     
     var recycledViews = [React]()
     var viewScreenBuckets = [Int: [React]]()
     
+    init(virtualView: VirtualView, isRoot: Bool = false) {
+        self.virtualViewTree = virtualView
+        self.isRoot = isRoot
+        super.init(nibName: nil, bundle: nil)
+    }
+    
+    required init?(coder: NSCoder) {
+        fatalError("Not implemented")
+    }
+    
     override func viewDidLoad() {
+        print("view did load \(virtualViewTree.text)")
         initScrollView()
+        render(virtualViewTree)
     }
     
     func initScrollView() {
         scrollView.delegate = self
         view.addSubview(scrollView)
         scrollView.clipsToBounds = true
+        //scrollView.fill(view)
     }
     
-    override func viewDidLayoutSubviews() {
-        render(virtualViewTree)
-    }
+//    override func viewDidLayoutSubviews() {
+//        print("view did layout \(virtualViewTree.text)")
+//        render(virtualViewTree)
+//    }
     
     func render(_ virtualViewTree: VirtualView) {
-        print("render")
         self.virtualViewTree = virtualViewTree
         if isRoot {
             renderSuperView()
@@ -171,14 +185,13 @@ class React: UIViewController, UIScrollViewDelegate {
             renderScreen(screenIndex: currentScreenIndex + i)
         }
     }
-    
-    //--- render shit
-    
-    func getView() -> React { // recylce old view if possible, if not create new one
+        
+    func getView(_ virtualView: VirtualView) -> React { // recylce old view if possible, if not create new one
         if let view = recycledViews.popLast() { // get from queue
+            view.virtualViewTree = virtualView
             return view
         }
-        let view = React()
+        let view = React(virtualView: virtualView)
         return view
     }
     
@@ -195,9 +208,16 @@ class React: UIViewController, UIScrollViewDelegate {
     }
     
     func renderView(_ i: Int, _ virtualSubView: VirtualView) -> React {
-        let subScrollView = getView()
+        print("render view \(virtualSubView.text)")
+        let subScrollView = getView(virtualSubView)
         let height = (virtualViewTree.layoutSubViews(i, virtualViewTree.subViews.count, view).h ?? virtualSubView.layout(view).h ?? defaultViewHeight)
         subScrollView.view.frame = CGRect(
+            x: 0,
+            y: CGFloat(virtualSubView.index) * height,
+            width: view.frame.size.width,
+            height: height - spacing
+        )
+        subScrollView.scrollView.frame = CGRect(
             x: 0,
             y: CGFloat(virtualSubView.index) * height,
             width: view.frame.size.width,
@@ -209,6 +229,10 @@ class React: UIViewController, UIScrollViewDelegate {
         addChild(subScrollView)
         subScrollView.didMove(toParent: self)
         
+        // call render ?
+        subScrollView.render(virtualSubView)
+        // start render not from on load, but from did layout in top level VC
+        
         // add label
         let label = UILabel(frame:  CGRect(
             x: 2,
@@ -218,8 +242,7 @@ class React: UIViewController, UIScrollViewDelegate {
         ))
         label.text = "\(virtualSubView.text)"
         label.textColor = .black
-        subScrollView.view.addSubview(label)
-        subScrollView.virtualViewTree = virtualSubView // gets rendered on viewDidLayoutSubViews
+        subScrollView.scrollView.addSubview(label)
         return subScrollView
     }
     
