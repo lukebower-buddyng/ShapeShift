@@ -78,12 +78,12 @@ class ViewController: UIViewController {
     override func viewDidLoad() {
         addViewController(react)
         react.view.fill(view)
-        react.render(vTree)
+        //react.render(vTree)
     }
     
-//    override func viewDidLayoutSubviews() {
-//        react.render(vTree)
-//    }
+    override func viewDidLayoutSubviews() {
+        react.render(vTree)
+    }
 }
 
 class React: UIViewController, UIScrollViewDelegate {
