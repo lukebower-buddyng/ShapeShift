@@ -112,30 +112,32 @@ class React: UIViewController, UIScrollViewDelegate {
     }
     
     override func viewDidLoad() {
-        //print("view did load \(virtualViewTree.text)")
         initScrollView()
-        //render(virtualViewTree)
     }
     
     func initScrollView() {
         scrollView.delegate = self
         view.addSubview(scrollView)
         scrollView.clipsToBounds = true
-        //scrollView.fill(view)
     }
     
     func render(_ virtualViewTree: VirtualView) {
         self.virtualViewTree = virtualViewTree
-        renderScrollView()
-        setScrollViewVirtualSize()
-        createVirtualScreenBuckets()
+        renderSelf()
+        virtualCalculations()
         renderScreens()
     }
     
-    func renderScrollView() {
+    func renderSelf() {
         scrollView.frame = CGRect(x: 0, y: 0,
             width: view.safeAreaLayoutGuide.layoutFrame.width,
             height: view.safeAreaLayoutGuide.layoutFrame.height)
+        view.backgroundColor = virtualViewTree.layout(view).color ?? .white
+    }
+    
+    func virtualCalculations() {
+        setScrollViewVirtualSize()
+        createVirtualScreenBuckets()
     }
     
     func setScrollViewVirtualSize() {
@@ -205,8 +207,9 @@ class React: UIViewController, UIScrollViewDelegate {
     }
     
     func renderView(_ i: Int, _ virtualSubView: VirtualView) -> React {
-        //print("render view \(virtualSubView.text)")
+        // recycle
         let subScrollView = getView(virtualSubView)
+        // size
         let height = (virtualViewTree.layoutSubViews(i, virtualViewTree.subViews.count, view).h ?? virtualSubView.layout(view).h ?? defaultViewHeight)
         subScrollView.view.frame = CGRect(
             x: 0,
@@ -214,11 +217,11 @@ class React: UIViewController, UIScrollViewDelegate {
             width: view.frame.size.width,
             height: height - spacing
         )
-        subScrollView.scrollView.contentSize = CGSize(width: subScrollView.view.frame.size.width, height: subScrollView.view.frame.size.height)
-        subScrollView.view.backgroundColor = virtualSubView.layout(view).color ?? .black
+        // add to view
         scrollView.addSubview(subScrollView.view)
         addChild(subScrollView)
         subScrollView.didMove(toParent: self)
+        // render
         subScrollView.render(virtualSubView)
         return subScrollView
     }
