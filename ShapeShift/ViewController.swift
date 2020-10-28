@@ -46,21 +46,27 @@ struct Layout {
 
 func createTestVirtualViewData() -> VirtualView {
     var virtualSubViews = [VirtualView]()
-    for _ in 0...0 {
+    for _ in 0...30{
         virtualSubViews.append(VirtualView(
             text: "level 1",//"\(i)",
-            layout: { parentView in return Layout(h: parentView.frame.height / 8, color: .cyan) },
+            layout: { parentView in return Layout(h: 100, color: .cyan) },
             subViews: [
                 VirtualView(
                     text: "level 2",
-                    layout: { parentView in return Layout(h: 30, color: .orange) }
+                    layout: { parentView in return Layout(h: 50, color: .orange) },
+                    subViews: [
+                        VirtualView(
+                            layout: { _ in return Layout(h: 25, color: .darkGray) }
+                        )
+                    ]
                 )
             ]
         ))
     }
     return VirtualView(
         text: "root",
-        layoutSubViews: { (i, total, parentView) in return Layout(h: 600) }, subViews: virtualSubViews
+        //layoutSubViews: { (i, total, parentView) in return Layout(h: 600) },
+        subViews: virtualSubViews
     )
 }
 
@@ -72,11 +78,12 @@ class ViewController: UIViewController {
     override func viewDidLoad() {
         addViewController(react)
         react.view.fill(view)
-    }
-    
-    override func viewDidLayoutSubviews() {
         react.render(vTree)
     }
+    
+//    override func viewDidLayoutSubviews() {
+//        react.render(vTree)
+//    }
 }
 
 class React: UIViewController, UIScrollViewDelegate {
@@ -84,7 +91,7 @@ class React: UIViewController, UIScrollViewDelegate {
     
     let scrollView = UIScrollView()
 
-    var screenHeight: CGFloat = 0
+    var screenHeight: CGFloat = 1
     let screenBuffer = 1
     var currentScreenIndex = 0
     let spacing: CGFloat = 2
@@ -108,7 +115,7 @@ class React: UIViewController, UIScrollViewDelegate {
     override func viewDidLoad() {
         print("view did load \(virtualViewTree.text)")
         initScrollView()
-        render(virtualViewTree)
+        //render(virtualViewTree)
     }
     
     func initScrollView() {
@@ -125,19 +132,20 @@ class React: UIViewController, UIScrollViewDelegate {
     
     func render(_ virtualViewTree: VirtualView) {
         self.virtualViewTree = virtualViewTree
-        if isRoot {
-            renderSuperView()
-        }
+//        if isRoot {
+//            renderSuperView()
+//        }
+        renderScrollView()
         setScrollViewVirtualSize()
         createVirtualScreenBuckets()
         renderScreens()
     }
     
-    func renderSuperView() {
+    func renderScrollView() {
         scrollView.frame = CGRect(x: 0, y: 0,
             width: view.safeAreaLayoutGuide.layoutFrame.width,
             height: view.safeAreaLayoutGuide.layoutFrame.height)
-        scrollView.backgroundColor = .purple
+//        scrollView.backgroundColor = .purple
     }
     
     func setScrollViewVirtualSize() {
@@ -150,7 +158,7 @@ class React: UIViewController, UIScrollViewDelegate {
     
     func createVirtualScreenBuckets() {
         virtualViewScreenBuckets = [0: []]
-        screenHeight = view.safeAreaLayoutGuide.layoutFrame.size.height
+        screenHeight = view.frame.height
         var currentScreen = 1
         var currentHeight: CGFloat = 0
         for (i, _) in virtualViewTree.subViews.enumerated() {
@@ -217,32 +225,12 @@ class React: UIViewController, UIScrollViewDelegate {
             width: view.frame.size.width,
             height: height - spacing
         )
-        subScrollView.scrollView.frame = CGRect(
-            x: 0,
-            y: CGFloat(virtualSubView.index) * height,
-            width: view.frame.size.width,
-            height: height - spacing
-        )
         subScrollView.scrollView.contentSize = CGSize(width: subScrollView.view.frame.size.width, height: subScrollView.view.frame.size.height)
         subScrollView.view.backgroundColor = virtualSubView.layout(view).color ?? .black
         scrollView.addSubview(subScrollView.view)
         addChild(subScrollView)
         subScrollView.didMove(toParent: self)
-        
-        // call render ?
         subScrollView.render(virtualSubView)
-        // start render not from on load, but from did layout in top level VC
-        
-        // add label
-        let label = UILabel(frame:  CGRect(
-            x: 2,
-            y: 2,
-            width: 200,
-            height: 20
-        ))
-        label.text = "\(virtualSubView.text)"
-        label.textColor = .black
-        subScrollView.scrollView.addSubview(label)
         return subScrollView
     }
     
